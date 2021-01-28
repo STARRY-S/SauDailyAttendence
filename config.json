@@ -1,0 +1,36 @@
+{
+  "username": "学号",
+  "password": "密码",
+  "post": {
+    "xingming": "姓名",
+    "xuehao": "学号",
+    "shoujihao": "手机号",
+    "danweiyuanxi": "学院",
+    "dangqiansuozaishengfen": "省份",
+    "dangqiansuozaichengshi": "城市",
+    "shifouyuhubeiwuhanrenyuanmiqie": "否",
+    "shifoujiankangqingkuang": "是",
+    "shifoujiechuguohubeihuoqitayou": "否",
+    "fanhuididian": "",
+    "shifouweigelirenyuan": "否",
+    "shentishifouyoubushizhengzhuan": "否",
+    "shifouyoufare": "否",
+    "qitaxinxi": "",
+    "tiwen": "36.1",
+    "tiwen1": "36.1",
+    "tiwen2": "36.1",
+    "riqi": "",
+    "id": "id需要抓包获取"
+  },
+  "mail": {
+    "host_server": "smtp服务器",
+    "sender": "发件人",
+    "password": "密码",
+    "receiver": "收件人"
+  },
+  "data": {
+    "cookie": "",
+    "last_login": "",
+    "last_post": ""
+  }
+}
