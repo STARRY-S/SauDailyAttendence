@@ -18,7 +18,7 @@ def send_mail(cf, msg):
   content = ("======== 自动打卡失败 ======\n" +
             "\n错误信息:\n{}".format(msg))
 
-  if host_server == "" or sender == "":
+  if host_server == "smtp服务器" or sender == "":
     print("Failed to send mail, please check the config file.")
     return -1
 

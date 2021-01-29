@@ -38,6 +38,7 @@ files = [
 for filename in files:
   if not os.path.exists(filename):
     print("File %s not found, please reinstall %s."%(filename, APP_NAME))
+    send_mail(config_file, "File {} not found".format(filename))
     exit(1)
 
 from mail import send_mail
@@ -49,6 +50,7 @@ try:
 except ImportError:
   print("Failed to import requests.")
   print("Install requirements via 'pip3 install requests'")
+  send_mail(config_file, "failed to import requests")
   exit(1)
 
 if args.mail:
@@ -57,6 +59,10 @@ if args.mail:
 
 # if args.clean:
 #   ## TODO clean data in config file.
+#   exit(0)
+
+# if args.log:
+#   # TODO log system.
 #   exit(0)
 
 if args.version:
@@ -128,11 +134,11 @@ def post(c):
     print("Failed: Timeout.")
     send_mail(config_file, "Post Data Time out.")
     return a
-  except response.ConnectionError as e1:
+  except requests.ConnectionError as e1:
     print("Failed: network failed or the server refused the connection.")
     print("        Please check your network connection or DNS setting.")
     print("        hint:   try 'ping app.sau.edu.cn' check DNS setting.")
-    debug(e1)
+    debug("Post Connection Error", e1)
     send_mail(config_file, "Network error")
     return a
   except requests.exceptions.RequestException as e2:
@@ -146,7 +152,7 @@ def login(c):
   print("Try login...")
   session = requests.session()
   # c = open_config(config_file)
-  if c['username'] == '' or c['password'] == '':
+  if c['username'] == '' or c['password'] == '' or c['username'] == '学号':
     print("[ERROR] No username or password found in config file.")
     print("        Please check config file.")
     exit(-1)
@@ -162,11 +168,11 @@ def login(c):
   except requests.exceptions.Timeout:
     print("Failed: Login Timeout.")
     return c
-  except response.ConnectionError as e1:
+  except requests.ConnectionError as e1:
     print("Failed: network failed or the server refused the connection.")
     print("        Please check your network connection or DNS setting.")
     print("        hint: try 'ping ucapp.sau.edu.cn' check DNS setting.")
-    debug(e1)
+    debug("Login Connection Error", e1)
     return c
   except requests.exceptions.RequestException as e2:
     print("Login failed.")
