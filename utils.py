@@ -7,8 +7,9 @@
 import json
 import sys
 
-DEBUG = false
+DEBUG = False
 LOG_NAME = "main.log"
+CONFIG_NAME = "config.json"
 
 login_headers = {
   "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -49,28 +50,35 @@ login_url = "https://ucapp.sau.edu.cn/wap/login/invalid"
 post_url = "https://app.sau.edu.cn/form/wap/default/save"
 
 # open config file
-def open_config(config_file):
-  with open(config_file) as config_open:
+def open_config():
+  with open(CONFIG_NAME) as config_open:
     configs = json.loads(config_open.read())
     # debug("Configs", configs)
     return configs
 
 # write json data to config file
-def write_config(config_file, data):
-  with open(config_file, 'w') as config_write:
+def write_config(data):
+  with open(CONFIG_NAME, 'w') as config_write:
     json.dump(data, config_write, indent=2, ensure_ascii=False)
 
-def LOG_DEBUG(*msg, info="[DEBUG]")
-  with open(LOG_NAME, 'w') as log_file
-    print(info, *msg, file = sys.stdout)
+def LOG_DEBUG(*msg, info="[DBUG]"):
+  if not DEBUG:
+    return
+  with open(LOG_NAME, 'a') as log_file:
+    print(f'\033[94m{info}\033[0m', *msg, file = sys.stdout)
     print(info, *msg, file = log_file)
 
-def LOG_INFO(*msg, info="[INFO] ")
-  with open(LOG_NAME, 'w') as log_file
-    print(info, *msg, file = sys.stdout)
+def LOG_INFO(*msg, info="[INFO]"):
+  with open(LOG_NAME, 'a') as log_file:
+    print(f'\033[92m{info}\033[0m', *msg, file = sys.stdout)
     print(info, *msg, file = log_file)
 
-def LOG_ERROR(*msg, info="[ERROR]")
-  with open(LOG_NAME, 'w') as log_file
-    print(info, *msg, file=sys.stderr)
+def LOG_WARN(*msg, info="[WARN]"):
+  with open(LOG_NAME, 'a') as log_file:
+    print(f'\033[93m{info}\033[0m', *msg, file = sys.stdout)
+    print(info, *msg, file = log_file)
+
+def LOG_ERROR(*msg, info="[ERRO]"):
+  with open(LOG_NAME, 'a') as log_file:
+    print(f'\033[91m{info}\033[0m', *msg, file=sys.stderr)
     print(info, *msg, file=log_file)

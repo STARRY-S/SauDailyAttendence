@@ -8,7 +8,7 @@ import argparse
 from datetime import datetime, timedelta
 
 AUTHOR = 'STARRY-S'
-VERSION = '1.0'
+VERSION = '1.2.0'
 APP_NAME = 'Sau Daily Attendence'
 DEBUG = False
 
@@ -18,68 +18,73 @@ parser.add_argument("-d", "--debug", help="debug mode", action="store_true")
 parser.add_argument("-c", "--config", help="Config file")
 parser.add_argument("-l", "--log", help="Log file")
 parser.add_argument("-m", "--mail", help="Send mail test message.", action="store_true")
-# parser.add_argument("--clean", help="Clean data", action="store_true")
+parser.add_argument("--clean", help="Clean data", action="store_true")
 parser.add_argument("-v", "--version", help="Show version", action="store_true")
 args = parser.parse_args()
 
-config_file = 'config.json'
-if args.config:
-  print("Set config file to: ", args.config)
-  config_file = args.config
-
+# import files
 files = [
   "mail.py",
   "utils.py",
   "config.json"
 ]
 
-# import files
 for filename in files:
   if not os.path.exists(filename):
-    print("File %s not found, please reinstall %s."%(filename, APP_NAME))
-    send_mail(config_file, "File {} not found".format(filename))
+    print("File {} not found, please reinstall {}.".format(filename, APP_NAME))
+    send_mail("File {} not found".format(filename))
     exit(1)
 
 from mail import send_mail
-from utils import open_config, write_config, LOG_DEBUG, LOG_INFO, LOG_ERROR
+from utils import open_config, write_config
+from utils import LOG_DEBUG, LOG_INFO, LOG_ERROR, LOG_WARN
 import utils
 
+# check args
+if args.version:
+  print("{n} by {a} \nVersion {v}".format(n=APP_NAME, a=AUTHOR, v=VERSION))
+  exit(0)
+
+if args.clean:
+  c = open_config()
+  c['data']['cookie'] = ''
+  c['data']['last_login'] = ''
+  c['data']['last_post'] = ''
+  write_config(c)
+  print("Data cleaned.")
+  exit(0)
+
+if args.config:
+  utils.CONFIG_NAME = args.config
+  LOG_INFO("Set config file to: ", args.config)
+
 if args.log:
-  # TODO log system.
-  print("Set log file to: ", args.log)
   utils.LOG_NAME = args.log
+  LOG_INFO("Set log file to: ", args.log)
+
+if args.mail:
+  send_mail("这是一条测试消息, 用来证明邮件功能可用.")
+  exit(0)
+
+if args.debug:
+  utils.DEBUG = True
 
 try:
   import requests
 except ImportError:
   LOG_ERROR("Failed to import requests.")
   LOG_ERROR("Install requirements via 'pip3 install requests'")
-  send_mail(config_file, "failed to import requests")
+  send_mail("failed to import requests")
   exit(1)
-
-if args.mail:
-  send_mail(config_file, "这是一条测试消息, 用来证明邮件功能可用.")
-  exit(0)
-
-if args.debug:
-  utils.DEBUG = True
-
-# if args.clean:
-#   ## TODO clean data in config file.
-#   exit(0)
-
-if args.version:
-  print("{n} by {a} \nVersion {v}".format(n=APP_NAME, a=AUTHOR, v=VERSION))
-  exit(0)
 
 now = datetime.now()
 
 def main():
-  c = open_config(config_file)
+  c = open_config()
 
   last_post_date = getDate(c['data']['last_post'])
   if now - last_post_date < timedelta(days=1):
-    LOG_INFO("Data is already post at ", c['data']['last_post'])
+    LOG_INFO("Data is already post at", c['data']['last_post'])
     exit(0)
 
   last_login_date = getDate(c['data']['last_login'])
@@ -87,36 +92,36 @@ def main():
   # or last success login over 30 days.
   if (c['data']['cookie'] == '') or (now - timedelta(days=30) > last_login_date):
     c = login(c)
-    write_config(config_file, c)
+    write_config(c)
     # if login failed and cookie is empty, can't post data.
     # if login failed but has previous cookie, try post data.
     if c['data']['cookie'] == '':
-      LOG_ERROR("Failed to login.")
-      send_mail(config_file, "Login Failed.")
+      # LOG_ERROR("Failed to login.")
+      send_mail("Login Failed.")
       exit(-1)
 
-  LOG_INFO("Start posting data at {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
+  LOG_INFO("Starting post data at {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
   a = post(c)
   # server response 302 if cookie error
   # relogin to update cookie
   if a.status_code == 302:
+    LOG_WARN("login failed due to cookie out date.")
     c = login(c)
     a = post(c)
 
   if a.status_code != 200:
-    LOG_ERROR("Code \"{}\", \
-      post failed while post data.".format(a.status_code))
-    send_mail(config_file, "Server response {}".format(a.status_code))
+    LOG_ERROR("Code \"{}\", post failed while post data.".format(a.status_code))
+    send_mail("Server response {}".format(a.status_code))
 
   post_info = json.loads(a.text)
   if post_info['e'] != 0:
     LOG_ERROR("\"{}\"".format(post_info['d']['message']))
-    send_mail(config_file, post_info['d']['message'])
+    send_mail(post_info['d']['message'])
     exit(-1)
   c['data']['last_post'] = now.strftime("%Y-%m-%d")
-  write_config(config_file, c)
+  write_config(c)
 
-  LOG_INFO("Success!")
+  LOG_INFO("Success!\n")
 
 def post(c):
   session = requests.session()
@@ -135,18 +140,18 @@ def post(c):
       data = post_data, params = {"formid": "10"}, timeout = 10)
   except requests.exceptions.Timeout:
     LOG_ERROR("Failed: Timeout.")
-    send_mail(config_file, "Post Data Time out.")
+    send_mail("Post Data Time out.")
     return a
   except requests.ConnectionError as e1:
     LOG_ERROR("Failed: network failed or the server refused the connection.")
     LOG_ERROR("        Please check your network connection or DNS setting.")
     LOG_ERROR("        hint:   try 'ping app.sau.edu.cn' check DNS setting.")
     LOG_DEBUG("Post Connection Error", e1)
-    send_mail(config_file, "Network error")
+    send_mail("Network error")
     return a
   except requests.exceptions.RequestException as e2:
     LOG_ERROR("Post failed.")
-    send_mail(config_file, e2)
+    send_mail(e2)
     return a
   LOG_DEBUG("Post Response", a.text)
   return a
@@ -154,10 +159,10 @@ def post(c):
 def login(c):
   LOG_INFO("Try login...")
   session = requests.session()
-  # c = open_config(config_file)
+  # c = open_config()
   if c['username'] == '' or c['password'] == '' or c['username'] == '学号':
-    LOG_ERROR("[ERROR] No username or password found in config file.")
-    LOG_ERROR("        Please check config file.")
+    LOG_ERROR("No username or password found in config file.")
+    send_mail("Login failed -- no username or password.")
     exit(-1)
 
   login_data = {
@@ -166,7 +171,7 @@ def login(c):
   }
   try:
     a = session.post(utils.login_url, headers = utils.login_headers,
-      data = login_data, timeout = 10)
+      data = login_data, timeout = 30)
   # Through failed to login, but still return config data, use cookie to post data.
   except requests.exceptions.Timeout:
     LOG_ERROR("Failed: Login Timeout.")
@@ -217,10 +222,6 @@ def getDate(s):
     int(s[2])
   )
   return d
-
-def LOG_DEBUG(info, msg):
-  if (DEBUG):
-    print(info, msg)
 
 if __name__ == '__main__':
   main()

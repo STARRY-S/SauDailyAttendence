@@ -6,11 +6,11 @@
 
 import smtplib
 from email.message import EmailMessage
-from utils import open_config, write_config
+from utils import open_config, write_config, LOG_ERROR, LOG_INFO
 
-def send_mail(cf, msg):
+def send_mail(msg):
   # get config
-  c = open_config(cf)
+  c = open_config()
   host_server = c['mail']['host_server']
   sender = c['mail']['sender']
   pwd = c['mail']['password']
@@ -19,7 +19,7 @@ def send_mail(cf, msg):
             "\n错误信息:\n{}".format(msg))
 
   if host_server == "smtp服务器" or sender == "":
-    print("Failed to send mail, please check the config file.")
+    LOG_ERROR("Failed to send mail, please check the config file.")
     return -1
 
   smtp = smtplib.SMTP_SSL(host_server)
@@ -35,7 +35,7 @@ def send_mail(cf, msg):
   message['To'] = receiver
 
   smtp.send_message(message)
-  print("Mail sent.")
+  LOG_INFO("Mail sent.")
 
 
 if __name__ == "__main__":
