@@ -16,12 +16,11 @@ DEBUG = False
 parser = argparse.ArgumentParser(description="Sau Daily Attendence.")
 parser.add_argument("-d", "--debug", help="debug mode", action="store_true")
 parser.add_argument("-c", "--config", help="Config file")
+parser.add_argument("-l", "--log", help="Log file")
 parser.add_argument("-m", "--mail", help="Send mail test message.", action="store_true")
+# parser.add_argument("--clean", help="Clean data", action="store_true")
 parser.add_argument("-v", "--version", help="Show version", action="store_true")
 args = parser.parse_args()
-
-if args.debug:
-  DEBUG = True
 
 config_file = 'config.json'
 if args.config:
@@ -42,14 +41,19 @@ for filename in files:
     exit(1)
 
 from mail import send_mail
-from utils import open_config, write_config
+from utils import open_config, write_config, LOG_DEBUG, LOG_INFO, LOG_ERROR
 import utils
+
+if args.log:
+  # TODO log system.
+  print("Set log file to: ", args.log)
+  utils.LOG_NAME = args.log
 
 try:
   import requests
 except ImportError:
-  print("Failed to import requests.")
-  print("Install requirements via 'pip3 install requests'")
+  LOG_ERROR("Failed to import requests.")
+  LOG_ERROR("Install requirements via 'pip3 install requests'")
   send_mail(config_file, "failed to import requests")
   exit(1)
 
@@ -57,12 +61,11 @@ if args.mail:
   send_mail(config_file, "这是一条测试消息, 用来证明邮件功能可用.")
   exit(0)
 
+if args.debug:
+  utils.DEBUG = True
+
 # if args.clean:
 #   ## TODO clean data in config file.
-#   exit(0)
-
-# if args.log:
-#   # TODO log system.
 #   exit(0)
 
 if args.version:
@@ -76,11 +79,11 @@ def main():
 
   last_post_date = getDate(c['data']['last_post'])
   if now - last_post_date < timedelta(days=1):
-    debug("[Info]", "Already post.")
+    LOG_INFO("Data is already post at ", c['data']['last_post'])
     exit(0)
-  
+
   last_login_date = getDate(c['data']['last_login'])
-  # if config don't have cookie 
+  # if config don't have cookie
   # or last success login over 30 days.
   if (c['data']['cookie'] == '') or (now - timedelta(days=30) > last_login_date):
     c = login(c)
@@ -88,32 +91,32 @@ def main():
     # if login failed and cookie is empty, can't post data.
     # if login failed but has previous cookie, try post data.
     if c['data']['cookie'] == '':
-      print("Failed to login.")
+      LOG_ERROR("Failed to login.")
       send_mail(config_file, "Login Failed.")
       exit(-1)
-  
-  print("Start posting data at {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
+
+  LOG_INFO("Start posting data at {}".format(now.strftime("%Y-%m-%d %H:%M:%S")))
   a = post(c)
   # server response 302 if cookie error
   # relogin to update cookie
   if a.status_code == 302:
     c = login(c)
     a = post(c)
-  
+
   if a.status_code != 200:
-    print("[ERROR] Code \"{}\", \
+    LOG_ERROR("Code \"{}\", \
       post failed while post data.".format(a.status_code))
     send_mail(config_file, "Server response {}".format(a.status_code))
-    
+
   post_info = json.loads(a.text)
   if post_info['e'] != 0:
-    print("[ERROR] \"{}\"".format(post_info['d']['message']))
+    LOG_ERROR("\"{}\"".format(post_info['d']['message']))
     send_mail(config_file, post_info['d']['message'])
     exit(-1)
   c['data']['last_post'] = now.strftime("%Y-%m-%d")
   write_config(config_file, c)
 
-  print("Success!")
+  LOG_INFO("Success!")
 
 def post(c):
   session = requests.session()
@@ -125,68 +128,68 @@ def post(c):
   post_data['tiwen2'] = "36.{}".format(str(random.randrange(1, 6, 1)))
   # Date: YYYY-MM-DD
   post_data['riqi'] = now.strftime("%Y-%m-%d")
-  
+
   a = None
   try:
-    a = session.post(utils.post_url, headers = utils.post_headers, 
+    a = session.post(utils.post_url, headers = utils.post_headers,
       data = post_data, params = {"formid": "10"}, timeout = 10)
   except requests.exceptions.Timeout:
-    print("Failed: Timeout.")
+    LOG_ERROR("Failed: Timeout.")
     send_mail(config_file, "Post Data Time out.")
     return a
   except requests.ConnectionError as e1:
-    print("Failed: network failed or the server refused the connection.")
-    print("        Please check your network connection or DNS setting.")
-    print("        hint:   try 'ping app.sau.edu.cn' check DNS setting.")
-    debug("Post Connection Error", e1)
+    LOG_ERROR("Failed: network failed or the server refused the connection.")
+    LOG_ERROR("        Please check your network connection or DNS setting.")
+    LOG_ERROR("        hint:   try 'ping app.sau.edu.cn' check DNS setting.")
+    LOG_DEBUG("Post Connection Error", e1)
     send_mail(config_file, "Network error")
     return a
   except requests.exceptions.RequestException as e2:
-    print("Post failed.")
+    LOG_ERROR("Post failed.")
     send_mail(config_file, e2)
     return a
-  debug("Post Response", a.text)
+  LOG_DEBUG("Post Response", a.text)
   return a
 
 def login(c):
-  print("Try login...")
+  LOG_INFO("Try login...")
   session = requests.session()
   # c = open_config(config_file)
   if c['username'] == '' or c['password'] == '' or c['username'] == '学号':
-    print("[ERROR] No username or password found in config file.")
-    print("        Please check config file.")
+    LOG_ERROR("[ERROR] No username or password found in config file.")
+    LOG_ERROR("        Please check config file.")
     exit(-1)
-  
+
   login_data = {
     "username": c["username"],
     "password": c["password"]
   }
   try:
-    a = session.post(utils.login_url, headers = utils.login_headers, 
+    a = session.post(utils.login_url, headers = utils.login_headers,
       data = login_data, timeout = 10)
   # Through failed to login, but still return config data, use cookie to post data.
   except requests.exceptions.Timeout:
-    print("Failed: Login Timeout.")
+    LOG_ERROR("Failed: Login Timeout.")
     return c
   except requests.ConnectionError as e1:
-    print("Failed: network failed or the server refused the connection.")
-    print("        Please check your network connection or DNS setting.")
-    print("        hint: try 'ping ucapp.sau.edu.cn' check DNS setting.")
-    debug("Login Connection Error", e1)
+    LOG_ERROR("Failed: network failed or the server refused the connection.")
+    LOG_ERROR("        Please check your network connection or DNS setting.")
+    LOG_ERROR("        hint: try 'ping ucapp.sau.edu.cn' check DNS setting.")
+    LOG_DEBUG("Login Connection Error", e1)
     return c
   except requests.exceptions.RequestException as e2:
-    print("Login failed.")
-    debug(e2)
+    LOG_ERROR("Login failed.")
+    LOG_DEBUG(e2)
     return c
-  
-  debug("Login Response", a.text)
+
+  LOG_DEBUG("Login Response", a.text)
   if a.status_code != 200:
-    print("Login failed: server respond {}".format(a.status_code))
+    LOG_ERROR("Login failed: server respond {}".format(a.status_code))
     return c
-  
+
   login_info = json.loads(a.text)
   if login_info['e'] != 0:
-    print("Failed: {}.".format(login_info['m']))
+    LOG_ERROR("Failed: {}.".format(login_info['m']))
     return c
 
   login_cookie = a.cookies.get_dict()
@@ -200,7 +203,7 @@ def login(c):
   # Write new login cookie and login date to config file.
   c['data']['cookie'] = cookie_str
   c['data']['last_login'] = now.strftime("%Y-%m-%d")
-  print("Login success.")
+  LOG_INFO("Login success.")
   return c
 
 def getDate(s):
@@ -209,14 +212,14 @@ def getDate(s):
     return datetime(2000, 1, 1)
   s = s.split('-')
   d = datetime(
-    int(s[0]), 
+    int(s[0]),
     int(s[1]),
     int(s[2])
   )
   return d
 
-def debug(info, msg):
-  if (DEBUG): 
+def LOG_DEBUG(info, msg):
+  if (DEBUG):
     print(info, msg)
 
 if __name__ == '__main__':

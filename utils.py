@@ -5,6 +5,10 @@
 ## Created by STARRY-S
 
 import json
+import sys
+
+DEBUG = false
+LOG_NAME = "main.log"
 
 login_headers = {
   "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -55,3 +59,18 @@ def open_config(config_file):
 def write_config(config_file, data):
   with open(config_file, 'w') as config_write:
     json.dump(data, config_write, indent=2, ensure_ascii=False)
+
+def LOG_DEBUG(*msg, info="[DEBUG]")
+  with open(LOG_NAME, 'w') as log_file
+    print(info, *msg, file = sys.stdout)
+    print(info, *msg, file = log_file)
+
+def LOG_INFO(*msg, info="[INFO] ")
+  with open(LOG_NAME, 'w') as log_file
+    print(info, *msg, file = sys.stdout)
+    print(info, *msg, file = log_file)
+
+def LOG_ERROR(*msg, info="[ERROR]")
+  with open(LOG_NAME, 'w') as log_file
+    print(info, *msg, file=sys.stderr)
+    print(info, *msg, file=log_file)
